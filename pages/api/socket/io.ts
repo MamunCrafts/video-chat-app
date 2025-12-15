@@ -1,6 +1,7 @@
 import { Server as NetServer } from 'http'
 import { NextApiRequest } from 'next'
 import { Server as ServerIO } from 'socket.io'
+import { prisma } from '@/lib/prisma'
 
 export const config = {
     api: {
@@ -31,11 +32,29 @@ const ioHandler = (req: NextApiRequest, res: any) => {
                 socket.to(roomId).emit('user-connected', userId)
             })
 
-            socket.on('send-message', (message) => {
-                // Send to receiver
-                io.to(message.receiverId).emit('receive-message', message)
-                // Send to sender (for other tabs/devices)
-                io.to(message.senderId).emit('receive-message', message)
+            socket.on('send-message', async (message) => {
+                try {
+                    // Save to database
+                    const savedMessage = await prisma.message.create({
+                        data: {
+                            content: message.content,
+                            senderId: message.senderId,
+                            receiverId: message.receiverId,
+                        }
+                    })
+
+                    const messageToEmit = {
+                        ...savedMessage,
+                        timestamp: new Date(savedMessage.createdAt).getTime()
+                    }
+
+                    // Send to receiver
+                    io.to(message.receiverId).emit('receive-message', messageToEmit)
+                    // Send to sender (for other tabs/devices)
+                    io.to(message.senderId).emit('receive-message', messageToEmit)
+                } catch (error) {
+                    console.error('Error saving message:', error)
+                }
             })
 
             socket.on('call-user', (data) => {

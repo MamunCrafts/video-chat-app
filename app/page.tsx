@@ -6,7 +6,7 @@ import { useSocket } from '@/components/SocketProvider'
 import Peer from 'peerjs'
 import { Avatar } from '@/components/Avatar'
 import { VideoCall } from '@/components/VideoCall'
-import { Search, Phone, Video, MoreHorizontal, Send, Image as ImageIcon, Smile, Settings, X } from 'lucide-react'
+import { Search, Phone, Video, MoreHorizontal, Send, Image as ImageIcon, Smile, Settings, X, ArrowLeft } from 'lucide-react'
 
 type User = {
   id: string
@@ -257,7 +257,11 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen bg-white overflow-hidden">
       {/* Sidebar */}
-      <div className="w-80 border-r border-gray-200 flex flex-col">
+      <div className={`
+        flex-col border-r border-gray-200 
+        w-full md:w-80 
+        ${selectedUser ? 'hidden md:flex' : 'flex'}
+      `}>
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-gray-900">Chats</h1>
@@ -321,12 +325,22 @@ export default function Dashboard() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative">
+      <div className={`
+        flex-col relative 
+        w-full md:flex-1 
+        ${selectedUser ? 'flex' : 'hidden md:flex'}
+      `}>
         {selectedUser ? (
           <>
             {/* Header */}
             <div className="h-16 border-b border-gray-200 flex items-center justify-between px-4 shadow-sm z-10">
               <div className="flex items-center">
+                <button
+                  onClick={() => setSelectedUser(null)}
+                  className="mr-3 md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+                >
+                  <ArrowLeft size={24} />
+                </button>
                 <Avatar name={selectedUser.name} email={selectedUser.email} />
                 <div className="ml-3">
                   <h2 className="font-semibold text-gray-900">{selectedUser.name || selectedUser.email}</h2>
