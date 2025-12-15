@@ -16,8 +16,10 @@ type User = {
 
 type Message = {
   senderId: string
+  receiverId?: string
   content: string
   timestamp: number
+  roomId?: string
 }
 
 export default function Dashboard() {
@@ -92,13 +94,40 @@ export default function Dashboard() {
 
       socket.emit('setup', user.id)
 
-      socket.on('receive-message', (message: Message) => {
+      const handleMessage = (message: Message) => {
         // Prevent duplicates for sender (since we added optimistically)
         if (message.senderId === user.id) return
-        setMessages((prev) => [...prev, message])
-      })
+
+        // Only append if it belongs to the current conversation
+        if (selectedUser &&
+          ((message.senderId === selectedUser.id && message.receiverId === user.id) ||
+            (message.senderId === user.id && message.receiverId === selectedUser.id))
+        ) {
+          setMessages((prev) => [...prev, message])
+        }
+      }
+
+      socket.on('receive-message', handleMessage)
+
+      return () => {
+        socket.off('receive-message', handleMessage)
+      }
     }
-  }, [user, socket])
+  }, [user, socket, selectedUser])
+
+  useEffect(() => {
+    if (selectedUser && user) {
+      setMessages([])
+      fetch(`/api/messages?otherUserId=${selectedUser.id}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.messages) {
+            setMessages(data.messages)
+          }
+        })
+        .catch(err => console.error('Failed to load messages', err))
+    }
+  }, [selectedUser, user])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
