@@ -76,11 +76,18 @@ export default function Dashboard() {
     if (user && socket) {
       // Initialize Peer
       import('peerjs').then(({ default: Peer }) => {
+        // Check if peer already exists to avoid duplicates
+        if (peerRef.current) return
+
         const peer = new Peer(user.id)
         peerRef.current = peer
 
         peer.on('open', (id) => {
           console.log('My peer ID is: ' + id)
+        })
+
+        peer.on('error', (err) => {
+          console.error('Peer connection error:', err)
         })
 
         peer.on('call', (call) => {
@@ -89,6 +96,7 @@ export default function Dashboard() {
           setCallerName(call.metadata?.name || 'Unknown')
           setIsVideoCall(call.metadata?.video !== false)
           setCall(call)
+          connectionRef.current = call
         })
       })
 
@@ -111,6 +119,10 @@ export default function Dashboard() {
 
       return () => {
         socket.off('receive-message', handleMessage)
+        if (peerRef.current) {
+          peerRef.current.destroy()
+          peerRef.current = null
+        }
       }
     }
   }, [user, socket, selectedUser])
@@ -164,6 +176,7 @@ export default function Dashboard() {
 
   const callUser = (id: string, video: boolean = true) => {
     setCallEnded(false)
+    setCallerName(selectedUser?.name || selectedUser?.email || 'Unknown') // Set name for outgoing call display
     if (!navigator.mediaDevices) {
       alert('Video calling is only available on localhost or HTTPS.')
       return
@@ -206,11 +219,21 @@ export default function Dashboard() {
       setStream(currentStream)
       if (myVideo.current) myVideo.current.srcObject = currentStream
 
-      call.answer(currentStream)
-
-      call.on('stream', (userStream: MediaStream) => {
-        if (userVideo.current) userVideo.current.srcObject = userStream
-      })
+      const currentCall = call || connectionRef.current
+      if (currentCall) {
+        try {
+          currentCall.answer(currentStream)
+          currentCall.on('stream', (userStream: MediaStream) => {
+            if (userVideo.current) userVideo.current.srcObject = userStream
+          })
+          // Update ref if not set (though it should be)
+          if (!connectionRef.current) connectionRef.current = currentCall
+        } catch (error) {
+          console.error('Failed to answer call:', error)
+        }
+      } else {
+        console.error('No call found to answer')
+      }
     })
   }
 
