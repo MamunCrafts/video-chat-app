@@ -40,14 +40,14 @@ The application follows a standard real-time architecture:
 ### Architecture Diagram
 ```mermaid
 graph TD
-    Client[Client (Browser)]
-    Server[Next.js Server]
-    DB[(PostgreSQL DB)]
-    PeerServer[PeerJS Cloud]
+    Client["Client (Browser)"]
+    Server["Next.js Server"]
+    DB[("PostgreSQL DB")]
+    PeerServer["PeerJS Cloud"]
 
     Client -- HTTP Requests --> Server
-    Client -- WebSocket (Chat) --> Server
-    Client -- WebRTC (Video/Audio) --> Client
+    Client -- "WebSocket (Chat)" --> Server
+    Client -- "WebRTC (Video/Audio)" --> Client
     Client -- Signaling --> PeerServer
     Server -- Reads/Writes --> DB
 ```
