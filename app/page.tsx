@@ -41,6 +41,7 @@ export default function Dashboard() {
   const [isVideoCall, setIsVideoCall] = useState(true)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [newName, setNewName] = useState('')
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
 
   const myVideo = useRef<HTMLVideoElement>(null)
   const userVideo = useRef<HTMLVideoElement>(null)
@@ -130,6 +131,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (selectedUser && user) {
       setMessages([])
+      setIsLoadingMessages(true)
       fetch(`/api/messages?otherUserId=${selectedUser.id}`)
         .then(res => res.json())
         .then(data => {
@@ -138,6 +140,7 @@ export default function Dashboard() {
           }
         })
         .catch(err => console.error('Failed to load messages', err))
+        .finally(() => setIsLoadingMessages(false))
     }
   }, [selectedUser, user])
 
@@ -281,39 +284,36 @@ export default function Dashboard() {
     <div className="flex h-screen bg-white overflow-hidden">
       {/* Sidebar */}
       <div className={`
-        flex-col border-r border-gray-200 
+        flex-col border-r border-slate-800 bg-slate-900 text-slate-100
         w-full md:w-80 
         ${selectedUser ? 'hidden md:flex' : 'flex'}
       `}>
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">Chats</h1>
-            <div className="flex space-x-2">
-              <div
-                className="p-2 bg-gray-100 rounded-full cursor-pointer hover:bg-gray-200"
-                onClick={() => {
-                  setNewName(user?.name || '')
-                  setIsSettingsOpen(true)
-                }}
-              >
-                <Settings size={20} />
-              </div>
-              <div className="p-2 bg-gray-100 rounded-full cursor-pointer hover:bg-gray-200">
-                <MoreHorizontal size={20} />
-              </div>
+        <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50 backdrop-blur-md sticky top-0 z-10">
+          <div className="flex items-center space-x-3">
+            <Avatar name={user?.name} className="ring-2 ring-indigo-500" />
+            <div>
+              <div className="font-bold text-lg">{user?.name}</div>
+              <div className="text-xs text-indigo-400 font-medium">Online</div>
             </div>
           </div>
+          <button onClick={() => setIsSettingsOpen(true)} className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors">
+            <Settings size={20} />
+          </button>
+        </div>
+
+        <div className="p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-3 top-3 text-slate-500" size={20} />
             <input
               type="text"
-              placeholder="Search Messenger"
-              className="w-full bg-gray-100 rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Search..."
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border-none rounded-xl text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 transition-all"
             />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {users.map((u) => (
+
+        <div className="flex-1 overflow-y-auto px-2 space-y-1">
+          {users.filter(u => u.id !== user?.id).map((u) => (
             <div
               key={u.id}
               onClick={() => {
@@ -323,119 +323,165 @@ export default function Dashboard() {
                   socket.emit('join-room', roomId, user.id)
                 }
               }}
-              className={`flex items-center p-3 cursor-pointer hover:bg-gray-100 transition ${selectedUser?.id === u.id ? 'bg-blue-50' : ''}`}
+              className={`flex items-center p-3 rounded-xl cursor-pointer transition-all duration-200 ${selectedUser?.id === u.id
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+                : 'hover:bg-slate-800 text-slate-300 hover:text-white'
+                }`}
             >
-              <Avatar name={u.name} email={u.email} size="lg" />
-              <div className="ml-3 flex-1">
-                <h3 className="font-semibold text-gray-900">{u.name || u.email}</h3>
-                <p className="text-sm text-gray-500 truncate">Click to start chatting</p>
+              <Avatar name={u.name} email={u.email} className={`${selectedUser?.id === u.id ? 'ring-2 ring-white/30' : ''}`} />
+              <div className="ml-3">
+                <div className="font-medium">{u.name || u.email}</div>
+                <div className={`text-xs ${selectedUser?.id === u.id ? 'text-indigo-200' : 'text-slate-500'}`}>Tap to chat</div>
               </div>
             </div>
           ))}
         </div>
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center">
-            <Avatar name={user?.name} email={user?.email} size="md" />
-            <div className="ml-3">
-              <p className="text-sm font-medium">{user?.name || user?.email}</p>
-              <button onClick={() => {
-                document.cookie = 'token=; Max-Age=0; path=/;'
-                router.push('/signin')
-              }} className="text-xs text-red-500 hover:underline">Log Out</button>
+        <div className="p-4 border-t border-slate-800 bg-slate-900/50 backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Avatar name={user?.name} email={user?.email} size="md" className="ring-1 ring-slate-700" />
+              <div className="ml-3">
+                <p className="text-sm font-medium text-slate-200">{user?.name || user?.email}</p>
+                <button onClick={() => {
+                  document.cookie = 'token=; Max-Age=0; path=/;'
+                  router.push('/signin')
+                }} className="text-xs text-red-400 hover:text-red-300 transition-colors">Log Out</button>
+              </div>
             </div>
+            <button className="p-2 text-slate-400 hover:bg-slate-800 rounded-full hover:text-white transition-colors">
+              <MoreHorizontal size={20} />
+            </button>
           </div>
         </div>
       </div>
 
       {/* Main Chat Area */}
       <div className={`
-        flex-col relative 
+        flex-col relative bg-slate-50
         w-full md:flex-1 
         ${selectedUser ? 'flex' : 'hidden md:flex'}
       `}>
         {selectedUser ? (
           <>
-            {/* Header */}
-            <div className="h-16 border-b border-gray-200 flex items-center justify-between px-4 shadow-sm z-10">
+            <div className="h-20 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-6 shadow-sm z-10 sticky top-0">
               <div className="flex items-center">
                 <button
                   onClick={() => setSelectedUser(null)}
-                  className="mr-3 md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full"
+                  className="mr-3 md:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
                 >
                   <ArrowLeft size={24} />
                 </button>
-                <Avatar name={selectedUser.name} email={selectedUser.email} />
-                <div className="ml-3">
-                  <h2 className="font-semibold text-gray-900">{selectedUser.name || selectedUser.email}</h2>
-                  <p className="text-xs text-green-500 font-medium">Active now</p>
+                <Avatar name={selectedUser.name} email={selectedUser.email} size="lg" className="ring-2 ring-slate-100" />
+                <div className="ml-4">
+                  <div className="font-bold text-slate-800 text-lg">{selectedUser.name || selectedUser.email}</div>
+                  <div className="text-xs text-green-500 font-medium flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse"></span>
+                    Active Now
+                  </div>
                 </div>
               </div>
-              <div className="flex space-x-4 text-blue-500">
-                <Phone
-                  className="cursor-pointer hover:bg-gray-100 p-2 rounded-full box-content"
-                  size={24}
+              <div className="flex space-x-2">
+                <button
                   onClick={() => callUser(selectedUser.id, false)}
-                />
-                <Video
-                  className="cursor-pointer hover:bg-gray-100 p-2 rounded-full box-content"
-                  size={24}
+                  className="p-3 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                >
+                  <Phone size={22} />
+                </button>
+                <button
                   onClick={() => callUser(selectedUser.id, true)}
-                />
-                <MoreHorizontal className="cursor-pointer hover:bg-gray-100 p-2 rounded-full box-content" size={24} />
+                  className="p-3 text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors"
+                >
+                  <Video size={22} />
+                </button>
+                <button className="p-3 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                  <MoreHorizontal size={22} />
+                </button>
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
-              {messages.map((msg, idx) => {
-                const isMe = msg.senderId === user?.id
-                return (
-                  <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    {!isMe && <Avatar name={selectedUser.name} size="sm" className="mr-2 self-end" />}
-                    <div
-                      className={`max-w-[70%] px-4 py-2 rounded-2xl ${isMe
-                        ? 'bg-blue-500 text-white rounded-br-none'
-                        : 'bg-gray-200 text-gray-900 rounded-bl-none'
-                        }`}
-                    >
-                      <p>{msg.content}</p>
-                    </div>
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50 scroll-smooth">
+              {isLoadingMessages ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-col space-y-4 pb-4">
+                    {messages.map((m, i) => {
+                      const isMe = m.senderId === user?.id
+                      return (
+                        <div
+                          key={i}
+                          className={`flex ${isMe ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                        >
+                          {!isMe && (
+                            <Avatar
+                              name={selectedUser.name}
+                              size="sm"
+                              className="mt-auto mr-2 shadow-sm"
+                            />
+                          )}
+                          <div
+                            className={`max-w-[70%] px-5 py-3 rounded-2xl shadow-sm ${isMe
+                              ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white rounded-br-sm'
+                              : 'bg-white text-slate-800 border border-slate-100 rounded-bl-sm'
+                              }`}
+                          >
+                            <div className="text-[15px] leading-relaxed">{m.content}</div>
+                            <div
+                              className={`text-[10px] mt-1.5 text-right ${isMe ? 'text-indigo-100/80' : 'text-slate-400'
+                                }`}
+                            >
+                              {new Date(m.timestamp).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                    <div ref={messagesEndRef} />
                   </div>
-                )
-              })}
-              <div ref={messagesEndRef} />
+                </>
+              )}
             </div>
 
-            {/* Input */}
-            <div className="p-4 border-t border-gray-200 flex items-center space-x-2">
-              <div className="flex space-x-2 text-blue-500">
-                <ImageIcon size={24} className="cursor-pointer hover:bg-gray-100 p-1 rounded-full" />
-                <Smile size={24} className="cursor-pointer hover:bg-gray-100 p-1 rounded-full" />
-              </div>
-              <div className="flex-1 relative">
+            <div className="p-4 bg-white border-t border-slate-100">
+              <div className="flex items-center space-x-2 bg-slate-50 p-2 rounded-2xl border border-slate-200 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition-all">
+                <button className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
+                  <Smile size={24} />
+                </button>
                 <input
                   type="text"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder="Aa"
-                  className="w-full bg-gray-100 rounded-full py-2 px-4 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                  placeholder="Type a message..."
+                  className="flex-1 bg-transparent border-none focus:ring-0 text-slate-800 placeholder-slate-400"
                 />
-                <Send
-                  size={20}
-                  className={`absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer transition ${inputMessage ? 'text-blue-500' : 'text-gray-400'}`}
+                <button
                   onClick={sendMessage}
-                />
+                  disabled={!inputMessage.trim()}
+                  className={`p-2.5 rounded-xl transition-all ${inputMessage.trim()
+                    ? 'bg-indigo-600 text-white shadow-md hover:bg-indigo-700 hover:scale-105 active:scale-95'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                >
+                  <Send size={20} />
+                </button>
               </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <MoreHorizontal size={48} className="text-gray-300" />
+          <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 text-slate-400">
+            <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center animate-pulse">
+                <Smile size={40} className="text-indigo-500" />
+              </div>
             </div>
-            <h2 className="text-xl font-semibold text-gray-700">No chat selected</h2>
-            <p className="mt-2">Select a user from the sidebar to start messaging.</p>
+            <p className="text-xl font-medium text-slate-600">Select a chat to start messaging</p>
+            <p className="text-sm mt-2 text-slate-400">Choose from your connection list</p>
           </div>
         )}
 
